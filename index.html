@@ -1,0 +1,1356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>图片元数据标记</title>
+  <style>
+    :root {
+      --ink: #202226;
+      --muted: #62676e;
+      --paper: #f6f5f1;
+      --panel: #ffffff;
+      --line: #d8d9d2;
+      --blue: #1756b6;
+      --blue-dark: #0e3b7f;
+      --teal: #087d71;
+      --gold: #9b6400;
+      --red: #b12828;
+      --shadow: 0 10px 28px rgba(25, 30, 35, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei UI", Arial, sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    .drop-zone:focus-visible {
+      outline: 3px solid rgba(23, 86, 182, 0.34);
+      outline-offset: 3px;
+    }
+
+    .app-header {
+      border-bottom: 1px solid var(--line);
+      background: #fffdf8;
+    }
+
+    .app-header__inner,
+    main {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .app-header__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 78px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    .header-tag {
+      color: var(--blue-dark);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    main {
+      padding: 34px 0 48px;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 18px;
+    }
+
+    .drop-zone {
+      display: grid;
+      min-height: 232px;
+      place-items: center;
+      padding: 28px;
+      border: 2px dashed #94a6b5;
+      border-radius: 8px;
+      background: #f9fcff;
+      text-align: center;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+
+    .drop-zone.is-dragging {
+      border-color: var(--blue);
+      background: #eaf4ff;
+    }
+
+    .drop-zone__content {
+      display: grid;
+      justify-items: center;
+      gap: 12px;
+    }
+
+    .drop-zone__mark {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border: 1px solid #8da4b7;
+      border-radius: 50%;
+      color: var(--blue-dark);
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .drop-zone strong {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .drop-zone p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .file-picker {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      padding: 0 15px;
+      border-radius: 5px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 650;
+      transition: background 150ms ease;
+    }
+
+    .file-picker:hover {
+      background: var(--blue-dark);
+    }
+
+    .file-picker input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 14px 16px;
+      border-left: 4px solid var(--teal);
+      background: #eef9f6;
+      color: #20564f;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .notice__label {
+      flex: 0 0 auto;
+      font-weight: 750;
+    }
+
+    .queue {
+      display: none;
+      border-top: 1px solid var(--line);
+    }
+
+    .queue.is-visible {
+      display: block;
+    }
+
+    .queue-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 0;
+    }
+
+    .queue-toolbar__title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    h2 {
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .count {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toolbar-actions,
+    .footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: 650;
+      transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+    }
+
+    .button--primary {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .button--primary:hover:not(:disabled) {
+      background: var(--blue-dark);
+    }
+
+    .button--secondary {
+      border-color: #aeb5ba;
+      background: #fff;
+      color: #2b343b;
+    }
+
+    .button--secondary:hover:not(:disabled) {
+      border-color: #65737e;
+      background: #f5f7f8;
+    }
+
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .image-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .image-row {
+      display: grid;
+      grid-template-columns: 24px 66px minmax(0, 1fr) auto 34px;
+      align-items: center;
+      gap: 14px;
+      min-height: 88px;
+      padding: 10px 10px 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      box-shadow: 0 2px 6px rgba(25, 30, 35, 0.025);
+    }
+
+    .image-row__check {
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+    }
+
+    .image-row__check input {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--blue);
+    }
+
+    .thumbnail {
+      width: 66px;
+      height: 66px;
+      overflow: hidden;
+      border: 1px solid #d2d6d9;
+      border-radius: 4px;
+      background: #edf0f2;
+    }
+
+    .thumbnail img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-row__info {
+      min-width: 0;
+    }
+
+    .image-row__name {
+      overflow: hidden;
+      color: #252d33;
+      font-size: 14px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .image-row__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px 12px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status {
+      justify-self: end;
+      min-width: 90px;
+      color: #52606a;
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .status--done,
+    .status--already {
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    .status--failed {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .status--writing {
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .remove {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border: 1px solid #c7cdd1;
+      border-radius: 4px;
+      background: #fff;
+      color: #4f5a62;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .remove:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .queue-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 18px;
+    }
+
+    .result-message {
+      min-height: 21px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .result-message.is-error {
+      color: var(--red);
+    }
+
+    @media (max-width: 720px) {
+      .app-header__inner,
+      main {
+        width: min(100% - 28px, 1120px);
+      }
+
+      .app-header__inner {
+        align-items: flex-start;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+        padding: 12px 0;
+      }
+
+      .queue-toolbar,
+      .queue-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .toolbar-actions,
+      .footer-actions {
+        width: 100%;
+      }
+
+      .toolbar-actions .button,
+      .footer-actions .button {
+        flex: 1 1 140px;
+      }
+
+      .image-row {
+        grid-template-columns: 24px 56px minmax(0, 1fr) 30px;
+        gap: 10px;
+      }
+
+      .thumbnail {
+        width: 56px;
+        height: 56px;
+      }
+
+      .status {
+        grid-column: 3;
+        justify-self: start;
+        min-width: 0;
+        margin-top: -2px;
+        text-align: left;
+      }
+
+      .remove {
+        grid-column: 4;
+        grid-row: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1>图片元数据标记</h1>
+      <div class="header-tag">XMP dc:subject = contains-synthetic-performer</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="workspace">
+      <label id="dropZone" class="drop-zone" tabindex="0">
+        <span class="drop-zone__content">
+          <span class="drop-zone__mark" aria-hidden="true">+</span>
+          <strong>选择或拖入图片</strong>
+          <p>导入后统一转换为 JPG，再写入标记</p>
+          <span class="file-picker">
+            选择图片
+            <input id="fileInput" type="file" accept="image/*" multiple>
+          </span>
+        </span>
+      </label>
+
+      <div class="notice">
+        <span class="notice__label">本地处理</span>
+        <span>图片不会上传。勾选文件会先以 JPG 重新编码，再追加 XMP 关键词；原始文件不会被覆盖。</span>
+      </div>
+
+      <section id="queue" class="queue" aria-live="polite">
+        <div class="queue-toolbar">
+          <div class="queue-toolbar__title">
+            <h2>待处理图片</h2>
+            <span id="count" class="count">0 个文件</span>
+          </div>
+          <div class="toolbar-actions">
+            <button id="selectAll" class="button button--secondary" type="button">全选</button>
+            <button id="clearAll" class="button button--secondary" type="button">清除</button>
+            <button id="writeTags" class="button button--primary" type="button">写入标记</button>
+          </div>
+        </div>
+
+        <ul id="imageList" class="image-list"></ul>
+
+        <div class="queue-footer">
+          <p id="resultMessage" class="result-message"></p>
+          <div class="footer-actions">
+            <button id="downloadAll" class="button button--primary" type="button" disabled>下载处理结果 ZIP</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const TAG = "contains-synthetic-performer";
+      const XMP_HEADER = "http://ns.adobe.com/xap/1.0/\u0000";
+      const XMP_KEYWORD = "XML:com.adobe.xmp";
+      const XMP_NS = "adobe:ns:meta/";
+      const RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+      const DC_NS = "http://purl.org/dc/elements/1.1/";
+      const textEncoder = new TextEncoder();
+      const textDecoder = new TextDecoder("utf-8", { fatal: true });
+      const app = {
+        items: [],
+        busy: false
+      };
+
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("fileInput");
+      const queue = document.getElementById("queue");
+      const imageList = document.getElementById("imageList");
+      const count = document.getElementById("count");
+      const selectAll = document.getElementById("selectAll");
+      const clearAll = document.getElementById("clearAll");
+      const writeTags = document.getElementById("writeTags");
+      const downloadAll = document.getElementById("downloadAll");
+      const resultMessage = document.getElementById("resultMessage");
+
+      const crcTable = createCrcTable();
+
+      fileInput.addEventListener("change", (event) => {
+        addFiles(event.target.files);
+        event.target.value = "";
+      });
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          if (!app.busy) {
+            dropZone.classList.add("is-dragging");
+          }
+        });
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropZone.classList.remove("is-dragging");
+        });
+      });
+
+      dropZone.addEventListener("drop", (event) => {
+        if (!app.busy) {
+          addFiles(event.dataTransfer.files);
+        }
+      });
+
+      dropZone.addEventListener("keydown", (event) => {
+        if ((event.key === "Enter" || event.key === " ") && !app.busy) {
+          event.preventDefault();
+          fileInput.click();
+        }
+      });
+
+      imageList.addEventListener("change", (event) => {
+        const input = event.target.closest("[data-select-id]");
+        if (!input) {
+          return;
+        }
+
+        const item = getItem(input.dataset.selectId);
+        if (item) {
+          item.selected = input.checked;
+          render();
+        }
+      });
+
+      imageList.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-remove-id]");
+        if (!button || app.busy) {
+          return;
+        }
+
+        const item = getItem(button.dataset.removeId);
+        if (item) {
+          URL.revokeObjectURL(item.previewUrl);
+          app.items = app.items.filter((candidate) => candidate.id !== item.id);
+          setMessage("");
+          render();
+        }
+      });
+
+      selectAll.addEventListener("click", () => {
+        app.items.forEach((item) => {
+          item.selected = true;
+        });
+        setMessage("");
+        render();
+      });
+
+      clearAll.addEventListener("click", () => {
+        if (app.busy) {
+          return;
+        }
+        app.items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+        app.items = [];
+        setMessage("");
+        render();
+      });
+
+      writeTags.addEventListener("click", writeSelectedTags);
+      downloadAll.addEventListener("click", downloadProcessedZip);
+
+      function addFiles(fileList) {
+        const validFiles = Array.from(fileList).filter(isSupportedImage);
+        const skipped = fileList.length - validFiles.length;
+
+        validFiles.forEach((file) => {
+          app.items.push({
+            id: createId(),
+            file,
+            previewUrl: URL.createObjectURL(file),
+            selected: true,
+            status: "queued",
+            detail: "等待写入",
+            output: null
+          });
+        });
+
+        if (skipped) {
+          setMessage(`已忽略 ${skipped} 个不支持的文件。仅支持 JPG、JPEG 和 PNG。`, true);
+        } else if (validFiles.length) {
+          setMessage(`已加入 ${validFiles.length} 个图片文件。`);
+        }
+        render();
+      }
+
+      function isSupportedImage(file) {
+        const name = file.name.toLowerCase();
+        return file.type.startsWith("image/") ||
+          /\.(jpg|jpeg|png|webp|gif|bmp|avif|tif|tiff)$/i.test(name);
+      }
+
+      function getItem(id) {
+        return app.items.find((item) => item.id === id);
+      }
+
+      function render() {
+        const selectedCount = app.items.filter((item) => item.selected).length;
+        const processedCount = app.items.filter((item) => item.output).length;
+        const readyCount = app.items.filter((item) => item.output && item.selected).length;
+
+        queue.classList.toggle("is-visible", app.items.length > 0);
+        count.textContent = `${app.items.length} 个文件，已选 ${selectedCount} 个`;
+        imageList.innerHTML = app.items.map(renderItem).join("");
+        selectAll.disabled = app.busy || app.items.length === 0 || selectedCount === app.items.length;
+        clearAll.disabled = app.busy || app.items.length === 0;
+        writeTags.disabled = app.busy || selectedCount === 0;
+        downloadAll.disabled = app.busy || readyCount === 0;
+
+        if (processedCount && !app.busy && !resultMessage.textContent) {
+          setMessage(`已准备 ${processedCount} 个处理结果。`);
+        }
+      }
+
+      function renderItem(item) {
+        return `
+          <li class="image-row">
+            <label class="image-row__check">
+              <input data-select-id="${item.id}" type="checkbox" ${item.selected ? "checked" : ""} ${app.busy ? "disabled" : ""} aria-label="选择 ${escapeHtml(item.file.name)}">
+            </label>
+            <div class="thumbnail">
+              <img src="${item.previewUrl}" alt="">
+            </div>
+            <div class="image-row__info">
+              <p class="image-row__name" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</p>
+              <div class="image-row__meta">
+                <span>${formatSize(item.file.size)}</span>
+                <span>${fileKind(item.file.name)}</span>
+              </div>
+            </div>
+            <span class="status status--${item.status}" title="${escapeHtml(item.detail)}">${escapeHtml(statusText(item.status))}</span>
+            <button class="remove" data-remove-id="${item.id}" type="button" title="移除 ${escapeHtml(item.file.name)}" aria-label="移除 ${escapeHtml(item.file.name)}" ${app.busy ? "disabled" : ""}>x</button>
+          </li>
+        `;
+      }
+
+      function statusText(status) {
+        const labels = {
+          queued: "等待写入",
+          writing: "正在写入",
+          done: "已写入",
+          already: "已有标记",
+          failed: "无法处理"
+        };
+        return labels[status] || "等待写入";
+      }
+
+      async function writeSelectedTags() {
+        const selectedItems = app.items.filter((item) => item.selected);
+        if (!selectedItems.length || app.busy) {
+          return;
+        }
+
+        app.busy = true;
+        setMessage(`正在处理 ${selectedItems.length} 个文件...`);
+        render();
+
+        for (const item of selectedItems) {
+          item.status = "writing";
+          item.detail = "正在写入 XMP dc:subject";
+          render();
+
+          try {
+            item.detail = "正在转换为 JPG";
+            render();
+            const result = await addTagToImage(item.file);
+            item.output = result.blob;
+            item.status = result.alreadyTagged ? "already" : "done";
+            item.detail = result.alreadyTagged ? "JPG 中已存在该 XMP 关键词" : "已转换为 JPG 并追加到 XMP dc:subject";
+          } catch (error) {
+            item.output = null;
+            item.status = "failed";
+            item.detail = error instanceof Error ? error.message : "未知错误";
+          }
+
+          await nextFrame();
+        }
+
+        app.busy = false;
+        const succeeded = selectedItems.filter((item) => item.output).length;
+        const failed = selectedItems.length - succeeded;
+        setMessage(
+          failed ? `完成：${succeeded} 个成功，${failed} 个无法处理。将鼠标停在“无法处理”上可查看原因。` : `完成：${succeeded} 个文件已准备下载。`,
+          failed > 0
+        );
+        render();
+      }
+
+      async function addTagToImage(file) {
+        const jpeg = await convertImageToJpeg(file);
+        const result = tagJpeg(new Uint8Array(await jpeg.arrayBuffer()));
+
+        return {
+          alreadyTagged: result.alreadyTagged,
+          blob: new Blob([result.bytes], { type: "image/jpeg" })
+        };
+      }
+
+      async function convertImageToJpeg(file) {
+        const source = await decodeImage(file);
+        const width = source.width;
+        const height = source.height;
+
+        if (!width || !height || width > 32767 || height > 32767) {
+          closeImageSource(source);
+          throw new Error("图片尺寸超出浏览器 JPG 转换范围");
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) {
+          closeImageSource(source);
+          throw new Error("浏览器无法创建图片转换画布");
+        }
+
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, width, height);
+        context.drawImage(source, 0, 0, width, height);
+        closeImageSource(source);
+
+        const jpeg = await new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("浏览器无法生成 JPG 文件"));
+            }
+          }, "image/jpeg", 0.95);
+        });
+
+        return jpeg;
+      }
+
+      async function decodeImage(file) {
+        if (typeof createImageBitmap === "function") {
+          try {
+            return await createImageBitmap(file, { imageOrientation: "from-image" });
+          } catch {
+            try {
+              return await createImageBitmap(file);
+            } catch {
+              // Fall through to an HTMLImageElement for older browser decoders.
+            }
+          }
+        }
+
+        const url = URL.createObjectURL(file);
+        try {
+          return await new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error("浏览器无法解码此图片格式"));
+            image.src = url;
+          });
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+
+      function closeImageSource(source) {
+        if (typeof source.close === "function") {
+          source.close();
+        }
+      }
+
+      function tagJpeg(bytes) {
+        if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+          throw new Error("不是有效的 JPEG 文件");
+        }
+
+        const headerBytes = textEncoder.encode(XMP_HEADER);
+        let position = 2;
+        let xmpSegment = null;
+        let hasExtendedXmp = false;
+
+        while (position + 4 <= bytes.length) {
+          if (bytes[position] !== 0xff) {
+            throw new Error("JPEG 结构不完整");
+          }
+
+          const start = position;
+          while (position < bytes.length && bytes[position] === 0xff) {
+            position += 1;
+          }
+
+          const marker = bytes[position];
+          position += 1;
+          if (marker === 0xd9 || marker === 0xda) {
+            break;
+          }
+          if (marker >= 0xd0 && marker <= 0xd7) {
+            continue;
+          }
+          if (position + 2 > bytes.length) {
+            throw new Error("JPEG 段长度缺失");
+          }
+
+          const segmentLength = (bytes[position] << 8) | bytes[position + 1];
+          const dataStart = position + 2;
+          const end = position + segmentLength;
+          if (segmentLength < 2 || end > bytes.length) {
+            throw new Error("JPEG 段长度无效");
+          }
+
+          if (marker === 0xe1) {
+            const data = bytes.subarray(dataStart, end);
+            if (startsWithBytes(data, headerBytes)) {
+              if (xmpSegment) {
+                throw new Error("发现多个标准 XMP 数据包，未修改文件");
+              }
+              xmpSegment = { start, end, dataStart, xmpStart: dataStart + headerBytes.length };
+            }
+            if (startsWithAscii(data, "http://ns.adobe.com/xmp/extension/\u0000")) {
+              hasExtendedXmp = true;
+            }
+          }
+
+          position = end;
+        }
+
+        if (!xmpSegment && hasExtendedXmp) {
+          throw new Error("仅含 Extended XMP 数据，未修改文件");
+        }
+
+        const oldXmp = xmpSegment ? decodeUtf8(bytes.subarray(xmpSegment.xmpStart, xmpSegment.end), "JPEG XMP") : "";
+        const modified = modifyXmp(oldXmp);
+        if (modified.alreadyTagged) {
+          return { bytes, alreadyTagged: true };
+        }
+
+        const xmpSegmentBytes = createJpegXmpSegment(modified.xml);
+        if (xmpSegment) {
+          return {
+            bytes: concatBytes([
+              bytes.subarray(0, xmpSegment.start),
+              xmpSegmentBytes,
+              bytes.subarray(xmpSegment.end)
+            ]),
+            alreadyTagged: false
+          };
+        }
+
+        return {
+          bytes: concatBytes([bytes.subarray(0, 2), xmpSegmentBytes, bytes.subarray(2)]),
+          alreadyTagged: false
+        };
+      }
+
+      function createJpegXmpSegment(xml) {
+        const header = textEncoder.encode(XMP_HEADER);
+        const packet = textEncoder.encode(xml);
+        const payloadLength = header.length + packet.length;
+        const segmentLength = payloadLength + 2;
+
+        if (segmentLength > 0xffff) {
+          throw new Error("XMP 数据过大，无法安全写入 JPEG");
+        }
+
+        const output = new Uint8Array(payloadLength + 4);
+        output[0] = 0xff;
+        output[1] = 0xe1;
+        output[2] = segmentLength >> 8;
+        output[3] = segmentLength & 0xff;
+        output.set(header, 4);
+        output.set(packet, 4 + header.length);
+        return output;
+      }
+
+      function tagPng(bytes) {
+        const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+        if (bytes.length < 20 || !signature.every((value, index) => bytes[index] === value)) {
+          throw new Error("不是有效的 PNG 文件");
+        }
+
+        const chunks = parsePngChunks(bytes);
+        const xmpChunks = chunks.filter((chunk) => chunk.type === "iTXt" && isPngXmpChunk(bytes.subarray(chunk.dataStart, chunk.dataEnd)));
+        if (xmpChunks.length > 1) {
+          throw new Error("发现多个 PNG XMP 数据包，未修改文件");
+        }
+
+        const existingChunk = xmpChunks[0];
+        const oldXmp = existingChunk ? readPngXmp(bytes.subarray(existingChunk.dataStart, existingChunk.dataEnd)) : "";
+        const modified = modifyXmp(oldXmp);
+        if (modified.alreadyTagged) {
+          return { bytes, alreadyTagged: true };
+        }
+
+        const replacement = createPngChunk("iTXt", createPngXmpData(modified.xml));
+        const pieces = [bytes.subarray(0, 8)];
+        let inserted = false;
+
+        for (const chunk of chunks) {
+          if (existingChunk && chunk.start === existingChunk.start) {
+            pieces.push(replacement);
+            inserted = true;
+            continue;
+          }
+          if (!existingChunk && chunk.type === "IEND") {
+            pieces.push(replacement);
+            inserted = true;
+          }
+          pieces.push(bytes.subarray(chunk.start, chunk.end));
+        }
+
+        if (!inserted) {
+          throw new Error("PNG 缺少结束数据块");
+        }
+
+        return {
+          bytes: concatBytes(pieces),
+          alreadyTagged: false
+        };
+      }
+
+      function parsePngChunks(bytes) {
+        const chunks = [];
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        let position = 8;
+        let foundIend = false;
+
+        while (position + 12 <= bytes.length) {
+          const start = position;
+          const length = view.getUint32(position);
+          const typeStart = position + 4;
+          const dataStart = position + 8;
+          const dataEnd = dataStart + length;
+          const end = dataEnd + 4;
+          if (end > bytes.length) {
+            throw new Error("PNG 数据块长度无效");
+          }
+
+          const type = bytesToAscii(bytes.subarray(typeStart, typeStart + 4));
+          chunks.push({ start, end, dataStart, dataEnd, type });
+          position = end;
+
+          if (type === "IEND") {
+            foundIend = true;
+            break;
+          }
+        }
+
+        if (!foundIend) {
+          throw new Error("PNG 缺少 IEND 数据块");
+        }
+        return chunks;
+      }
+
+      function isPngXmpChunk(data) {
+        const zeroIndex = data.indexOf(0);
+        return zeroIndex > 0 && decodeAscii(data.subarray(0, zeroIndex)) === XMP_KEYWORD;
+      }
+
+      function readPngXmp(data) {
+        const zeroIndex = data.indexOf(0);
+        if (zeroIndex < 0 || !isPngXmpChunk(data)) {
+          throw new Error("PNG XMP 数据格式无效");
+        }
+
+        const compressionFlagIndex = zeroIndex + 1;
+        const compressionMethodIndex = zeroIndex + 2;
+        const languageStart = zeroIndex + 3;
+        if (compressionMethodIndex >= data.length) {
+          throw new Error("PNG XMP 数据不完整");
+        }
+        if (data[compressionFlagIndex] !== 0 || data[compressionMethodIndex] !== 0) {
+          throw new Error("压缩的 PNG XMP 数据暂不支持");
+        }
+
+        const languageEnd = findZero(data, languageStart);
+        const translatedEnd = findZero(data, languageEnd + 1);
+        if (languageEnd < 0 || translatedEnd < 0) {
+          throw new Error("PNG XMP 数据不完整");
+        }
+
+        return decodeUtf8(data.subarray(translatedEnd + 1), "PNG XMP");
+      }
+
+      function createPngXmpData(xml) {
+        return concatBytes([
+          textEncoder.encode(XMP_KEYWORD),
+          new Uint8Array([0, 0, 0, 0, 0]),
+          textEncoder.encode(xml)
+        ]);
+      }
+
+      function createPngChunk(type, data) {
+        const typeBytes = textEncoder.encode(type);
+        const output = new Uint8Array(12 + data.length);
+        const view = new DataView(output.buffer);
+        view.setUint32(0, data.length);
+        output.set(typeBytes, 4);
+        output.set(data, 8);
+        view.setUint32(8 + data.length, crc32(concatBytes([typeBytes, data])));
+        return output;
+      }
+
+      function modifyXmp(xmp) {
+        if (!xmp) {
+          return { xml: createNewXmp(), alreadyTagged: false };
+        }
+
+        const document = new DOMParser().parseFromString(xmp, "application/xml");
+        if (document.querySelector("parsererror")) {
+          throw new Error("无法解析现有 XMP，未修改文件");
+        }
+
+        const subjects = Array.from(document.getElementsByTagNameNS(DC_NS, "subject"));
+        for (const subject of subjects) {
+          const values = Array.from(subject.getElementsByTagNameNS(RDF_NS, "li"));
+          if (values.some((value) => value.textContent.trim() === TAG)) {
+            return { xml: xmp, alreadyTagged: true };
+          }
+        }
+
+        let subject = subjects[0];
+        if (!subject) {
+          subject = document.createElementNS(DC_NS, "dc:subject");
+          getOrCreateRdfDescription(document).appendChild(subject);
+        }
+
+        let bag = Array.from(subject.children).find((element) =>
+          element.namespaceURI === RDF_NS && element.localName === "Bag"
+        );
+        if (!bag) {
+          if (subject.children.length) {
+            throw new Error("现有 XMP 关键词结构不受支持，未修改文件");
+          }
+          bag = document.createElementNS(RDF_NS, "rdf:Bag");
+          subject.appendChild(bag);
+        }
+
+        const item = document.createElementNS(RDF_NS, "rdf:li");
+        item.textContent = TAG;
+        bag.appendChild(item);
+
+        let xml = new XMLSerializer().serializeToString(document);
+        if (!xml.includes("<?xpacket")) {
+          xml = `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>\n${xml}\n<?xpacket end="w"?>`;
+        }
+        return { xml, alreadyTagged: false };
+      }
+
+      function getOrCreateRdfDescription(document) {
+        let rdf = document.getElementsByTagNameNS(RDF_NS, "RDF")[0];
+        if (!rdf) {
+          throw new Error("现有 XMP 缺少 RDF 数据，未修改文件");
+        }
+
+        let description = Array.from(rdf.children).find((element) =>
+          element.namespaceURI === RDF_NS && element.localName === "Description"
+        );
+        if (!description) {
+          description = document.createElementNS(RDF_NS, "rdf:Description");
+          description.setAttributeNS(RDF_NS, "rdf:about", "");
+          rdf.appendChild(description);
+        }
+        return description;
+      }
+
+      function createNewXmp() {
+        return `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="${XMP_NS}">
+  <rdf:RDF xmlns:rdf="${RDF_NS}">
+    <rdf:Description rdf:about="" xmlns:dc="${DC_NS}">
+      <dc:subject>
+        <rdf:Bag>
+          <rdf:li>${TAG}</rdf:li>
+        </rdf:Bag>
+      </dc:subject>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`;
+      }
+
+      async function downloadProcessedZip() {
+        const items = app.items.filter((item) => item.selected && item.output);
+        if (!items.length || app.busy) {
+          return;
+        }
+
+        app.busy = true;
+        setMessage(`正在打包 ${items.length} 个文件...`);
+        render();
+
+        try {
+          const zip = await createZip(items);
+          triggerDownload(zip, "contains-synthetic-performer-images.zip");
+          setMessage(`已下载 ZIP，包含 ${items.length} 个已处理图片。`);
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : "打包失败", true);
+        } finally {
+          app.busy = false;
+          render();
+        }
+      }
+
+      async function createZip(items) {
+        if (items.length > 65535) {
+          throw new Error("ZIP 最多支持 65,535 个文件");
+        }
+
+        const localParts = [];
+        const centralParts = [];
+        let offset = 0;
+        const dosTimeDate = getDosTimeDate(new Date());
+
+        for (const item of items) {
+          const fileBytes = new Uint8Array(await item.output.arrayBuffer());
+          const nameBytes = textEncoder.encode(outputName(item.file.name));
+          if (fileBytes.length > 0xffffffff || nameBytes.length > 0xffff) {
+            throw new Error("文件过大，无法创建 ZIP");
+          }
+
+          const crc = crc32(fileBytes);
+          const local = new Uint8Array(30 + nameBytes.length);
+          const localView = new DataView(local.buffer);
+          localView.setUint32(0, 0x04034b50, true);
+          localView.setUint16(4, 20, true);
+          localView.setUint16(6, 0x0800, true);
+          localView.setUint16(8, 0, true);
+          localView.setUint16(10, dosTimeDate.time, true);
+          localView.setUint16(12, dosTimeDate.date, true);
+          localView.setUint32(14, crc, true);
+          localView.setUint32(18, fileBytes.length, true);
+          localView.setUint32(22, fileBytes.length, true);
+          localView.setUint16(26, nameBytes.length, true);
+          localView.setUint16(28, 0, true);
+          local.set(nameBytes, 30);
+
+          const central = new Uint8Array(46 + nameBytes.length);
+          const centralView = new DataView(central.buffer);
+          centralView.setUint32(0, 0x02014b50, true);
+          centralView.setUint16(4, 20, true);
+          centralView.setUint16(6, 20, true);
+          centralView.setUint16(8, 0x0800, true);
+          centralView.setUint16(10, 0, true);
+          centralView.setUint16(12, dosTimeDate.time, true);
+          centralView.setUint16(14, dosTimeDate.date, true);
+          centralView.setUint32(16, crc, true);
+          centralView.setUint32(20, fileBytes.length, true);
+          centralView.setUint32(24, fileBytes.length, true);
+          centralView.setUint16(28, nameBytes.length, true);
+          centralView.setUint16(30, 0, true);
+          centralView.setUint16(32, 0, true);
+          centralView.setUint16(34, 0, true);
+          centralView.setUint16(36, 0, true);
+          centralView.setUint32(38, 0, true);
+          centralView.setUint32(42, offset, true);
+          central.set(nameBytes, 46);
+
+          localParts.push(local, fileBytes);
+          centralParts.push(central);
+          offset += local.length + fileBytes.length;
+        }
+
+        const centralDirectory = concatBytes(centralParts);
+        const end = new Uint8Array(22);
+        const endView = new DataView(end.buffer);
+        endView.setUint32(0, 0x06054b50, true);
+        endView.setUint16(4, 0, true);
+        endView.setUint16(6, 0, true);
+        endView.setUint16(8, items.length, true);
+        endView.setUint16(10, items.length, true);
+        endView.setUint32(12, centralDirectory.length, true);
+        endView.setUint32(16, offset, true);
+        endView.setUint16(20, 0, true);
+
+        return new Blob([...localParts, centralDirectory, end], { type: "application/zip" });
+      }
+
+      function triggerDownload(blob, name) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function outputName(name) {
+        const dot = name.lastIndexOf(".");
+        const baseName = dot > 0 ? name.slice(0, dot) : name;
+        return `${baseName}.jpg`;
+      }
+
+      function getDosTimeDate(date) {
+        const year = Math.max(1980, date.getFullYear());
+        return {
+          time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+          date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+        };
+      }
+
+      function createCrcTable() {
+        const table = new Uint32Array(256);
+        for (let index = 0; index < 256; index += 1) {
+          let value = index;
+          for (let bit = 0; bit < 8; bit += 1) {
+            value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+          }
+          table[index] = value >>> 0;
+        }
+        return table;
+      }
+
+      function crc32(bytes) {
+        let value = 0xffffffff;
+        for (const byte of bytes) {
+          value = crcTable[(value ^ byte) & 0xff] ^ (value >>> 8);
+        }
+        return (value ^ 0xffffffff) >>> 0;
+      }
+
+      function startsWithBytes(bytes, prefix) {
+        return bytes.length >= prefix.length && prefix.every((value, index) => bytes[index] === value);
+      }
+
+      function startsWithAscii(bytes, text) {
+        return startsWithBytes(bytes, textEncoder.encode(text));
+      }
+
+      function decodeUtf8(bytes, fieldName) {
+        try {
+          return textDecoder.decode(bytes);
+        } catch {
+          throw new Error(`${fieldName} 不是 UTF-8 编码，未修改文件`);
+        }
+      }
+
+      function decodeAscii(bytes) {
+        let output = "";
+        for (const byte of bytes) {
+          output += String.fromCharCode(byte);
+        }
+        return output;
+      }
+
+      function bytesToAscii(bytes) {
+        return decodeAscii(bytes);
+      }
+
+      function findZero(bytes, from) {
+        for (let index = from; index < bytes.length; index += 1) {
+          if (bytes[index] === 0) {
+            return index;
+          }
+        }
+        return -1;
+      }
+
+      function concatBytes(parts) {
+        const length = parts.reduce((total, part) => total + part.length, 0);
+        const output = new Uint8Array(length);
+        let offset = 0;
+        for (const part of parts) {
+          output.set(part, offset);
+          offset += part.length;
+        }
+        return output;
+      }
+
+      function formatSize(bytes) {
+        if (bytes < 1024 * 1024) {
+          return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+        }
+        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+      }
+
+      function fileKind(name) {
+        const extension = name.split(".").pop();
+        return extension ? extension.toUpperCase() : "IMAGE";
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function createId() {
+        return (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function setMessage(message, isError = false) {
+        resultMessage.textContent = message;
+        resultMessage.classList.toggle("is-error", isError);
+      }
+
+      function nextFrame() {
+        return new Promise((resolve) => window.requestAnimationFrame(resolve));
+      }
+    })();
+  </script>
+</body>
+</html>
